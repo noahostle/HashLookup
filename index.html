@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hash Prefix Search</title>
+
+    <style>
+        :root {
+            color-scheme: light dark;
+
+            --bg: #f7f7f7;
+            --panel: #ffffff;
+            --border: #e5e5e5;
+            --text: #171717;
+            --muted: #737373;
+            --input-bg: #fafafa;
+            --button: #171717;
+            --button-text: #ffffff;
+            --error: #b42318;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111111;
+                --panel: #181818;
+                --border: #2b2b2b;
+                --text: #eeeeee;
+                --muted: #999999;
+                --input-bg: #202020;
+                --button: #eeeeee;
+                --button-text: #111111;
+                --error: #ff7b72;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        .container {
+            width: min(1050px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 64px 0;
+        }
+
+        header {
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 25px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 140px 1fr 1fr 1fr;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        input,
+        select {
+            width: 100%;
+            height: 42px;
+            padding: 0 12px;
+
+            border: 1px solid var(--border);
+            border-radius: 8px;
+
+            background: var(--input-bg);
+            color: var(--text);
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                "Liberation Mono",
+                monospace;
+            font-size: 14px;
+
+            outline: none;
+            transition:
+                border-color 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+
+        select {
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--muted);
+        }
+
+        input::placeholder {
+            color: var(--muted);
+            opacity: 0.65;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        button {
+            height: 40px;
+            padding: 0 20px;
+
+            border: 0;
+            border-radius: 8px;
+
+            background: var(--button);
+            color: var(--button-text);
+
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+
+            cursor: pointer;
+            transition:
+                opacity 0.15s ease,
+                transform 0.05s ease;
+        }
+
+        button:hover {
+            opacity: 0.88;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        #status {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        #status.error {
+            color: var(--error);
+        }
+
+        .results-section {
+            margin-top: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .results-title {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .stats {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stats strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        #results {
+            height: 520px;
+            overflow: auto;
+
+            border: 1px solid var(--border);
+            border-radius: 10px;
+
+            background: var(--panel);
+
+            padding: 14px 16px;
+
+            white-space: pre;
+            tab-size: 4;
+
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                "Liberation Mono",
+                monospace;
+            font-size: 12.5px;
+            line-height: 1.7;
+        }
+
+        #results:empty::before {
+            content: "No results";
+            color: var(--muted);
+        }
+
+        @media (max-width: 850px) {
+            .controls {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .container {
+                width: min(100% - 24px, 1050px);
+                padding: 32px 0;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            .results-header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            #results {
+                height: 450px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Hash Prefix Search</h1>
+
+        <div class="subtitle">
+            Search hash prefixes from 3 characters through the full hash length.
+        </div>
+    </header>
+
+    <div class="panel">
+
+        <div class="controls">
+
+            <div class="field">
+                <label for="hashType">HASH TYPE</label>
+
+                <select id="hashType">
+                    <option value="md5">MD5</option>
+                    <option value="ntlm">NTLM</option>
+                    <option value="sha1">SHA-1</option>
+                    <option value="sha256" selected>SHA-256</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="prefix">HASH PREFIX</label>
+
+                <input
+                    id="prefix"
+                    placeholder="783df"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+            </div>
+
+            <div class="field">
+                <label for="suffix">HASH SUFFIX</label>
+
+                <input
+                    id="suffix"
+                    maxlength="64"
+                    placeholder="f1d5c"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+            </div>
+
+            <div class="field">
+                <label for="passSearch">PASS SEARCH</label>
+
+                <input
+                    id="passSearch"
+                    placeholder="Dubrovnik"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+            </div>
+
+        </div>
+
+        <div class="actions">
+            <button id="searchButton">Search</button>
+            <div id="status">Ready</div>
+        </div>
+
+    </div>
+
+    <div class="results-section">
+
+        <div class="results-header">
+
+            <div class="results-title">
+                Results
+            </div>
+
+            <div class="stats">
+                <strong id="displayedCount">0</strong> displayed
+                ·
+                <strong id="totalCount">0</strong> matched
+                ·
+                <strong id="rawCount">0</strong> returned
+            </div>
+
+        </div>
+
+        <div id="results"></div>
+
+    </div>
+
+</div>
+
+<script>
+const API_BASE = "https://weakpass.com/api/v1/range/";
+const HEX = "0123456789abcdef";
+
+/*
+ * Maximum simultaneous HTTP requests.
+ *
+ * This is particularly important for 3-character prefixes,
+ * which require 4,096 API calls.
+ */
+const CONCURRENCY = 8;
+
+const HASH_LENGTHS = {
+    md5: 32,
+    ntlm: 32,
+    sha1: 40,
+    sha256: 64
+};
+
+let allResults = [];
+let rawReturnedCount = 0;
+
+let currentController = null;
+
+const hashTypeInput =
+    document.getElementById("hashType");
+
+const prefixInput =
+    document.getElementById("prefix");
+
+const suffixInput =
+    document.getElementById("suffix");
+
+const passInput =
+    document.getElementById("passSearch");
+
+const searchButton =
+    document.getElementById("searchButton");
+
+const statusDiv =
+    document.getElementById("status");
+
+const resultsDiv =
+    document.getElementById("results");
+
+const totalCount =
+    document.getElementById("totalCount");
+
+const rawCount =
+    document.getElementById("rawCount");
+
+const displayedCount =
+    document.getElementById("displayedCount");
+
+
+function cleanHexInput(input) {
+
+    input.value = input.value
+        .toLowerCase()
+        .replace(/[^0-9a-f]/g, "");
+}
+
+
+function updatePrefixMaxLength() {
+
+    const hashType =
+        hashTypeInput.value;
+
+    prefixInput.maxLength =
+        HASH_LENGTHS[hashType];
+
+    suffixInput.maxLength =
+        HASH_LENGTHS[hashType];
+
+
+    if (
+        prefixInput.value.length >
+        HASH_LENGTHS[hashType]
+    ) {
+        prefixInput.value =
+            prefixInput.value.slice(
+                0,
+                HASH_LENGTHS[hashType]
+            );
+    }
+}
+
+
+hashTypeInput.addEventListener(
+    "change",
+    updatePrefixMaxLength
+);
+
+
+prefixInput.addEventListener(
+    "input",
+    () => {
+        cleanHexInput(prefixInput);
+    }
+);
+
+
+suffixInput.addEventListener(
+    "input",
+    () => {
+        cleanHexInput(suffixInput);
+        renderResults();
+    }
+);
+
+
+passInput.addEventListener(
+    "input",
+    renderResults
+);
+
+
+function renderResults() {
+
+    const suffix =
+        suffixInput.value
+            .trim()
+            .toLowerCase();
+
+    const passSearch =
+        passInput.value
+            .toLowerCase();
+
+
+    const filtered =
+        allResults.filter(entry => {
+
+            const hash =
+                String(
+                    entry.hash ?? ""
+                ).toLowerCase();
+
+            const pass =
+                String(
+                    entry.pass ?? ""
+                );
+
+
+            if (
+                suffix &&
+                !hash.endsWith(suffix)
+            ) {
+                return false;
+            }
+
+
+            if (
+                passSearch &&
+                !pass
+                    .toLowerCase()
+                    .includes(passSearch)
+            ) {
+                return false;
+            }
+
+
+            return true;
+        });
+
+
+    displayedCount.textContent =
+        filtered.length.toLocaleString();
+
+
+    if (filtered.length === 0) {
+
+        resultsDiv.textContent = "";
+        return;
+    }
+
+
+    resultsDiv.textContent =
+        filtered
+            .map(
+                entry =>
+                    `${entry.hash}\t${entry.pass}`
+            )
+            .join("\n");
+}
+
+
+/*
+ * Generate all six-character API prefixes
+ * required for the user's requested prefix.
+ *
+ * Examples:
+ *
+ * abc
+ * -> abc000 ... abcfff
+ *
+ * abcd
+ * -> abcd00 ... abcdff
+ *
+ * abcde
+ * -> abcde0 ... abcdef
+ *
+ * abcdef
+ * -> abcdef
+ *
+ * abcdef12
+ * -> abcdef
+ */
+function generateApiPrefixes(prefix) {
+
+    if (prefix.length >= 6) {
+        return [prefix.slice(0, 6)];
+    }
+
+
+    const missing =
+        6 - prefix.length;
+
+    const prefixes = [];
+
+
+    function build(current, depth) {
+
+        if (depth === missing) {
+
+            prefixes.push(
+                prefix + current
+            );
+
+            return;
+        }
+
+
+        for (const c of HEX) {
+
+            build(
+                current + c,
+                depth + 1
+            );
+        }
+    }
+
+
+    build("", 0);
+
+    return prefixes;
+}
+
+
+async function queryPrefix(
+    prefix6,
+    hashType,
+    signal
+) {
+
+    const url =
+        `${API_BASE}${prefix6}` +
+        `?type=${encodeURIComponent(hashType)}`;
+
+
+    const response =
+        await fetch(
+            url,
+            { signal }
+        );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `${prefix6}: HTTP ${response.status}`
+        );
+    }
+
+
+    const data =
+        await response.json();
+
+
+    if (!Array.isArray(data)) {
+
+        throw new Error(
+            `${prefix6}: unexpected API response`
+        );
+    }
+
+
+    return data;
+}
+
+
+/*
+ * Run an array of jobs with limited concurrency.
+ *
+ * This prevents a 3-character prefix from generating
+ * 4,096 simultaneous HTTP connections.
+ */
+async function runPool(
+    items,
+    worker,
+    concurrency
+) {
+
+    let nextIndex = 0;
+
+
+    async function runner() {
+
+        while (true) {
+
+            const index =
+                nextIndex++;
+
+            if (
+                index >=
+                items.length
+            ) {
+                return;
+            }
+
+
+            await worker(
+                items[index],
+                index
+            );
+        }
+    }
+
+
+    const workers =
+        Array.from(
+            {
+                length:
+                    Math.min(
+                        concurrency,
+                        items.length
+                    )
+            },
+            runner
+        );
+
+
+    await Promise.all(workers);
+}
+
+
+async function search() {
+
+    const requestedPrefix =
+        prefixInput.value
+            .trim()
+            .toLowerCase();
+
+    const hashType =
+        hashTypeInput.value;
+
+    const maxLength =
+        HASH_LENGTHS[hashType];
+
+
+    if (
+        requestedPrefix.length < 3
+    ) {
+
+        statusDiv.textContent =
+            "Enter at least 3 hexadecimal characters.";
+
+        statusDiv.className =
+            "error";
+
+        return;
+    }
+
+
+    if (
+        requestedPrefix.length >
+        maxLength
+    ) {
+
+        statusDiv.textContent =
+            `${hashType.toUpperCase()} hashes are only ${maxLength} hex characters long.`;
+
+        statusDiv.className =
+            "error";
+
+        return;
+    }
+
+
+    if (
+        !/^[0-9a-f]+$/.test(
+            requestedPrefix
+        )
+    ) {
+
+        statusDiv.textContent =
+            "Prefix must contain hexadecimal characters only.";
+
+        statusDiv.className =
+            "error";
+
+        return;
+    }
+
+
+    if (currentController) {
+        currentController.abort();
+    }
+
+
+    currentController =
+        new AbortController();
+
+    const signal =
+        currentController.signal;
+
+
+    allResults = [];
+    rawReturnedCount = 0;
+
+    renderResults();
+
+
+    totalCount.textContent = "0";
+    rawCount.textContent = "0";
+
+    searchButton.disabled = true;
+
+    statusDiv.className = "";
+
+
+    /*
+     * Work out which six-character API requests
+     * are required.
+     */
+    const apiPrefixes =
+        generateApiPrefixes(
+            requestedPrefix
+        );
+
+    const requestCount =
+        apiPrefixes.length;
+
+
+    statusDiv.textContent =
+        `Querying ${requestCount.toLocaleString()} prefix${requestCount === 1 ? "" : "es"}…`;
+
+
+    let completed = 0;
+    let failed = 0;
+
+    const collected = [];
+
+
+    try {
+
+        await runPool(
+
+            apiPrefixes,
+
+            async prefix6 => {
+
+                try {
+
+                    const results =
+                        await queryPrefix(
+                            prefix6,
+                            hashType,
+                            signal
+                        );
+
+
+                    rawReturnedCount +=
+                        results.length;
+
+
+                    /*
+                     * Important for prefixes longer
+                     * than six characters.
+                     *
+                     * The API only knows about the
+                     * first six characters, so apply
+                     * the rest locally.
+                     */
+                    for (
+                        const entry
+                        of results
+                    ) {
+
+                        const hash =
+                            String(
+                                entry.hash ?? ""
+                            ).toLowerCase();
+
+
+                        if (
+                            hash.startsWith(
+                                requestedPrefix
+                            )
+                        ) {
+                            collected.push(
+                                entry
+                            );
+                        }
+                    }
+
+
+                    completed++;
+
+                } catch (error) {
+
+                    if (
+                        error.name ===
+                        "AbortError"
+                    ) {
+                        throw error;
+                    }
+
+
+                    console.error(error);
+
+                    failed++;
+                }
+
+
+                const done =
+                    completed + failed;
+
+
+                statusDiv.textContent =
+                    `${done.toLocaleString()} / ${requestCount.toLocaleString()} queried` +
+                    (
+                        failed
+                            ? ` · ${failed} failed`
+                            : ""
+                    );
+            },
+
+            CONCURRENCY
+        );
+
+
+        /*
+         * Deduplicate exact hash/password pairs.
+         */
+        const seen =
+            new Set();
+
+
+        allResults =
+            collected.filter(
+                entry => {
+
+                    const key =
+                        `${entry.hash}\u0000${entry.pass}`;
+
+
+                    if (
+                        seen.has(key)
+                    ) {
+                        return false;
+                    }
+
+
+                    seen.add(key);
+
+                    return true;
+                }
+            );
+
+
+        allResults.sort(
+            (a, b) =>
+                String(a.hash)
+                    .localeCompare(
+                        String(b.hash)
+                    )
+        );
+
+
+        totalCount.textContent =
+            allResults.length
+                .toLocaleString();
+
+
+        rawCount.textContent =
+            rawReturnedCount
+                .toLocaleString();
+
+
+        renderResults();
+
+
+        if (failed === 0) {
+
+            statusDiv.textContent =
+                `Complete · ${allResults.length.toLocaleString()} matching results`;
+
+            statusDiv.className = "";
+
+        } else {
+
+            statusDiv.textContent =
+                `Complete · ${allResults.length.toLocaleString()} matching · ${failed} request${failed === 1 ? "" : "s"} failed`;
+
+            statusDiv.className =
+                "error";
+        }
+
+
+    } catch (error) {
+
+        if (
+            error.name ===
+            "AbortError"
+        ) {
+
+            statusDiv.textContent =
+                "Search cancelled";
+
+        } else {
+
+            console.error(error);
+
+            statusDiv.textContent =
+                `Error: ${error.message}`;
+
+            statusDiv.className =
+                "error";
+        }
+
+    } finally {
+
+        searchButton.disabled =
+            false;
+    }
+}
+
+
+searchButton.addEventListener(
+    "click",
+    search
+);
+
+
+[
+    prefixInput,
+    suffixInput,
+    passInput
+].forEach(input => {
+
+    input.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Enter"
+            ) {
+                search();
+            }
+        }
+    );
+});
+
+
+updatePrefixMaxLength();
+</script>
+
+</body>
+</html>
